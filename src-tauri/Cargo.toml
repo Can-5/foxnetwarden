@@ -14,7 +14,7 @@ rusqlite = { version = "0.33", features = ["bundled"] }
 notify-rust = "4"
 
 [build-dependencies]
-tauri-build = "2"
+tauri-build = { version = "2", features = [] }
 
 [profile.release]
 strip = true

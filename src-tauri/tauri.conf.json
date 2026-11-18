@@ -22,7 +22,7 @@
     ]
   },
   "bundle": {
-    "category": "Security",
+    "category": "Utility",
     "resources": [],
     "icon": ["icons/icon.png"]
   }
