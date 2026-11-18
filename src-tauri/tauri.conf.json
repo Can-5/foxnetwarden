@@ -1,0 +1,29 @@
+{
+  "productName": "FoxNetwarden",
+  "version": "1.0.0",
+  "identifier": "app.foxnetwarden.firewall",
+  "build": {
+    "frontendDist": "../web"
+  },
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "title": "FoxNetwarden",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640,
+        "backgroundColor": "#14100e",
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "category": "Security",
+    "resources": [],
+    "icon": ["icons/icon.png"]
+  }
+}
