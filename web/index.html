@@ -2,9 +2,250 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <title>FoxNetwarden</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="FoxNetwarden — yerel, hesapsız, bulutsuz Linux kişisel ağ güvenlik duvarı.">
+  <link rel="icon" href="icon.png">
+  <title>FoxNetwarden — ağ güvenlik duvarın</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app">FoxNetwarden yükleniyor…</div>
+  <div class="app" id="app">
+    <!-- Üst bar -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="26" height="26">
+            <path d="M16 2 L28 7 V16 C28 23 22.5 28 16 30 C9.5 28 4 23 4 16 V7 Z" fill="#14100e" stroke="#e3a857" stroke-width="2"/>
+            <path d="M16 9 V23 M9 16 H23" stroke="#e3a857" stroke-width="2.4" stroke-linecap="round"/>
+            <circle cx="16" cy="16" r="3.2" fill="#14100e" stroke="#e3a857" stroke-width="1.6"/>
+          </svg>
+        </span>
+        <span class="brand-name">FOX<span>NETWARDEN</span></span>
+        <span class="brand-tag">yerel ağ kalkanı</span>
+      </div>
+      <div class="topbar-status">
+        <span class="status-pill" id="modePill" data-mode="observe">● SALT İZLEME</span>
+        <span class="ks-pill" id="ksPill" data-active="false">KILL SWITCH: KAPALI</span>
+        <time class="clock" id="clock">--:--:--</time>
+      </div>
+    </header>
+
+    <div class="shell">
+      <!-- Sol gezinme -->
+      <nav class="sidebar" aria-label="Ana gezinme">
+        <button class="nav-item is-active" data-screen="live" type="button">
+          <span class="nav-ico" aria-hidden="true">⌁</span><span>Canlı</span>
+          <span class="nav-badge" id="navLiveCount">0</span>
+        </button>
+        <button class="nav-item" data-screen="analysis" type="button">
+          <span class="nav-ico" aria-hidden="true">▤</span><span>Analiz</span>
+        </button>
+        <button class="nav-item" data-screen="dns" type="button">
+          <span class="nav-ico" aria-hidden="true">◎</span><span>DNS</span>
+        </button>
+        <button class="nav-item" data-screen="rules" type="button">
+          <span class="nav-ico" aria-hidden="true">⊘</span><span>Kurallar</span>
+          <span class="nav-badge" id="navRuleCount">0</span>
+        </button>
+        <button class="nav-item nav-danger" data-screen="kill" type="button">
+          <span class="nav-ico" aria-hidden="true">⏻</span><span>Kill Switch</span>
+        </button>
+        <button class="nav-item" data-screen="settings" type="button">
+          <span class="nav-ico" aria-hidden="true">⚙</span><span>Ayarlar</span>
+        </button>
+        <div class="side-foot">
+          <div class="foot-line"><span class="foot-dot"></span> Bulut yok · Hesap yok</div>
+          <div class="foot-line foot-dim">v1.0.0 · MIT · yerel veri</div>
+        </div>
+      </nav>
+
+      <!-- İçerik -->
+      <main class="content" id="content">
+        <!-- CANLI -->
+        <section class="screen is-active" id="screen-live" aria-labelledby="h-live">
+          <div class="screen-head">
+            <div>
+              <h1 id="h-live">Canlı trafik</h1>
+              <p class="sub">Makinedeki aktif bağlantılar — süreç, hedef ve şüphe skoru.</p>
+            </div>
+            <div class="head-actions">
+              <label class="inline-check"><input type="checkbox" id="autoRefresh" checked> otomatik yenile</label>
+              <button class="btn btn-ghost" id="refreshBtn" type="button">↻ Yenile</button>
+            </div>
+          </div>
+
+          <div class="stat-grid" id="statGrid">
+            <div class="stat"><span class="stat-k">Bağlantı</span><span class="stat-v" id="statConns">0</span></div>
+            <div class="stat"><span class="stat-k">Süreç</span><span class="stat-v" id="statProcs">0</span></div>
+            <div class="stat"><span class="stat-k">Şüpheli</span><span class="stat-v stat-warn" id="statSusp">0</span></div>
+            <div class="stat"><span class="stat-k">Engelli</span><span class="stat-v stat-danger" id="statBlocked">0</span></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <span>AKTİF BAĞLANTILAR</span>
+              <span class="panel-meta" id="liveMeta">—</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="liveTable">
+                <thead><tr>
+                  <th>Süreç</th><th>Yerel</th><th>Uzak hedef</th><th>Durum</th><th>Şüphe</th>
+                </tr></thead>
+                <tbody id="liveBody">
+                  <tr><td colspan="5" class="empty">Bağlantı okunuyor…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="hint" id="permissionHint">İpucu: Diğer kullanıcıların süreç adları <code>?</code> olarak görünür — bu izin kısıtıdır, hata değil.</p>
+        </section>
+
+        <!-- ANALİZ -->
+        <section class="screen" id="screen-analysis" aria-labelledby="h-analysis">
+          <div class="screen-head">
+            <div>
+              <h1 id="h-analysis">Analiz</h1>
+              <p class="sub">En çok konuşan süreçler ve kaydedilen bağlantı geçmişi.</p>
+            </div>
+          </div>
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-head"><span>EN ÇOK HEDEF · SÜREÇ</span></div>
+              <div class="bars" id="talkerBars"><p class="empty">Veri yok.</p></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><span>GEÇMİŞ ÖZETİ</span></div>
+              <div class="stat-grid compact" id="historyStats">
+                <div class="stat"><span class="stat-k">Kayıt</span><span class="stat-v" id="histCount">0</span></div>
+                <div class="stat"><span class="stat-k">Benzersiz hedef</span><span class="stat-v" id="histTargets">0</span></div>
+              </div>
+              <div class="table-wrap short">
+                <table class="data-table" id="historyTable">
+                  <thead><tr><th>Zaman</th><th>Süreç</th><th>Hedef</th><th>Durum</th></tr></thead>
+                  <tbody id="historyBody"><tr><td colspan="4" class="empty">Kayıt yok.</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- DNS -->
+        <section class="screen" id="screen-dns" aria-labelledby="h-dns">
+          <div class="screen-head">
+            <div>
+              <h1 id="h-dns">DNS izleme</h1>
+              <p class="sub">systemd-resolved hata ayıklama günlüğünden alan adı sorguları.</p>
+            </div>
+            <button class="btn" id="dnsToggleBtn" type="button">DNS izlemeyi aç</button>
+          </div>
+          <div class="notice" id="dnsNotice">
+            <strong id="dnsNoticeTitle">Görünmez mod</strong>
+            <span id="dnsNoticeBody">DNS sorguları şu an görünmüyor. Tarayıcılar DoH kullanıyorsa resolved bu trafiği göremez. İzlemeyi açmak için root yetkisiyle debug günlüğü okunur.</span>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span>SON SORGULAR</span><span class="panel-meta" id="dnsMeta">—</span></div>
+            <div class="table-wrap">
+              <table class="data-table" id="dnsTable">
+                <thead><tr><th>Zaman</th><th>Alan adı</th><th>Tür</th><th>İşaret</th></tr></thead>
+                <tbody id="dnsBody"><tr><td colspan="4" class="empty">İzleme kapalı.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- KURALLAR -->
+        <section class="screen" id="screen-rules" aria-labelledby="h-rules">
+          <div class="screen-head">
+            <div>
+              <h1 id="h-rules">Kurallar</h1>
+              <p class="sub">Hedef veya porta dayalı engelleme/izin kuralları — nftables.</p>
+            </div>
+          </div>
+          <div class="notice notice-warn" id="pkexecNotice">Her yazma işlemi <strong>pkexec</strong> ile root şifresi ister. Şifre uygulamada saklanmaz.</div>
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-head"><span>YENİ KURAL</span></div>
+              <form class="rule-form" id="ruleForm">
+                <label>Eylem
+                  <select id="ruleAction"><option value="block">Engelle</option><option value="allow">İzin ver</option></select>
+                </label>
+                <label>Hedef <span class="lbl-hint">IP / CIDR / alan adı</span>
+                  <input id="ruleTarget" type="text" placeholder="ör. 192.0.2.66 veya example.com" autocomplete="off" required>
+                </label>
+                <label>Port <span class="lbl-hint">isteğe bağlı</span>
+                  <input id="rulePort" type="number" min="1" max="65535" placeholder="443">
+                </label>
+                <button class="btn btn-block" type="submit">Kural ekle</button>
+              </form>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><span>AKTİF KURALLAR</span><span class="panel-meta" id="ruleMeta">0 kural</span></div>
+              <div class="table-wrap">
+                <table class="data-table" id="rulesTable">
+                  <thead><tr><th>Handle</th><th>Eylem</th><th>Hedef</th><th></th></tr></thead>
+                  <tbody id="rulesBody"><tr><td colspan="4" class="empty">Kural yok.</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- KILL SWITCH -->
+        <section class="screen" id="screen-kill" aria-labelledby="h-kill">
+          <div class="screen-head">
+            <div>
+              <h1 id="h-kill">Kill switch</h1>
+              <p class="sub">Tüm ağ trafiğini tek tuşla keser — IPv4, IPv6, DNS, LAN dahil.</p>
+            </div>
+          </div>
+          <div class="kill-stage" id="killStage" data-active="false">
+            <div class="kill-ring" aria-hidden="true"><span class="kill-ring-inner"></span></div>
+            <div class="kill-core">
+              <div class="kill-state" id="killState">KORUMA AKTİF</div>
+              <div class="kill-desc" id="killDesc">Ağ trafiği normal akıyor.</div>
+              <button class="kill-btn" id="killBtn" type="button">TÜM AĞI KES</button>
+              <p class="kill-fine">Oturumluk · çökerse <code>sudo nft delete table inet foxnetwarden</code> · izin kuralları geçersiz.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- AYARLAR -->
+        <section class="screen" id="screen-settings" aria-labelledby="h-settings">
+          <div class="screen-head">
+            <div>
+              <h1 id="h-settings">Ayarlar</h1>
+              <p class="sub">Yenileme hızı, koruma ve başlatma tercihleri.</p>
+            </div>
+          </div>
+          <div class="settings-grid">
+            <label class="setting-row">
+              <span class="setting-label">Yenileme hızı<span class="setting-hint">Canlı tablo güncelleme aralığı</span></span>
+              <select id="setRefresh"><option value="1000">1 saniye</option><option value="2000" selected>2 saniye</option><option value="5000">5 saniye</option></select>
+            </label>
+            <label class="setting-row">
+              <span class="setting-label">Tracker koruması<span class="setting-hint">Gömülü blocklist ile eşleştir</span></span>
+              <input type="checkbox" id="setBlocklist" checked>
+            </label>
+            <label class="setting-row">
+              <span class="setting-label">Başlangıçta çalıştır<span class="setting-hint">Masaüstü oturumuyla aç</span></span>
+              <input type="checkbox" id="setAutostart">
+            </label>
+            <label class="setting-row">
+              <span class="setting-label">DNS debug izleme<span class="setting-hint">Root gerekir, oturumluk</span></span>
+              <input type="checkbox" id="setDns">
+            </label>
+          </div>
+          <div class="settings-actions">
+            <button class="btn" id="saveSettings" type="button">Ayarları kaydet</button>
+            <button class="btn btn-ghost" id="exportBtn" type="button">Geçmişi dışa aktar (JSON)</button>
+          </div>
+          <p class="hint">Ayarlar tarayıcı modunda <code>localStorage</code>'a, masaüstünde uygulama veri dizinine yazılır.</p>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="app.js"></script>
 </body>
 </html>
