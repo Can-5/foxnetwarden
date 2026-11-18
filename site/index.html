@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FoxNetwarden — ağ güvenlik duvarın</title>
+<meta name="description" content="Yerel, hesapsız, bulutsuz kişisel Linux ağ güvenlik duvarı. Trafiğini gör, şüpheli bağlantıyı yakala, tek tuşla ağı kes.">
+<link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#ust">
+    <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+      <path d="M20 3 L33 8 V19 C33 28 27 34 20 37 C13 34 7 28 7 19 V8 Z" fill="#14100e" stroke="#e3a857" stroke-width="1.6"/>
+      <path d="M20 12 V28 M12 20 H28" stroke="#e3a857" stroke-width="2.4" stroke-linecap="round"/>
+      <circle cx="20" cy="20" r="3" fill="#14100e"/>
+    </svg>
+    <span>FOX<span class="thin">NETWARDEN</span></span>
+  </a>
+  <nav class="topnav" aria-label="Sayfa bölümleri">
+    <a href="#ozellikler" data-i18n="nav.features">Özellikler</a>
+    <a href="#mimari" data-i18n="nav.arch">Mimari</a>
+    <a href="#kurulum" data-i18n="nav.install">Kurulum</a>
+    <a href="#gizlilik" data-i18n="nav.privacy">Gizlilik</a>
+  </nav>
+  <div class="lang-switch" role="group" aria-label="Dil / Language">
+    <button class="lang-btn is-active" data-lang="tr" aria-pressed="true">TR</button>
+    <button class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
+  </div>
+</header>
+
+<main>
+<section class="hero" id="ust">
+  <div class="hero-inner">
+    <p class="eyebrow" data-i18n="hero.eyebrow">Linux masaüstü için · açık kaynak · MIT</p>
+    <h1 data-i18n="hero.title">Ağını gör. Şüpheliyi yakala. Tek tuşla kes.</h1>
+    <p class="lede" data-i18n="hero.lede">FoxNetwarden, hangi uygulamanın nereye bağlandığını gerçek zamanlı gösteren, şüpheli trafiği yerel kurallarla işaretleyen ve tüm ağı anında kesebilen kişisel bir güvenlik duvarıdır. Hesap yok, bulut yok, telemetri yok.</p>
+    <div class="hero-actions">
+      <a class="btn primary" href="#kurulum" data-i18n="hero.cta">Kuruluma başla</a>
+      <a class="btn ghost" href="https://github.com/Can-5/foxnetwarden" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+    <div class="hero-note" data-i18n="hero.note">Yerel çalışır · verin cihazından çıkmaz · root yalnızca engelleme için</div>
+  </div>
+  <div class="hero-art" aria-hidden="true">
+    <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+    <div class="core"><span>FNW</span></div>
+    <div class="node n1"></div><div class="node n2"></div><div class="node n3"></div><div class="node n4"></div>
+  </div>
+</section>
+
+<section class="section" id="ozellikler">
+  <div class="section-head">
+    <span class="kicker" data-i18n="sec.features">NE YAPAR</span>
+    <h2 data-i18n="sec.features.title">Sekiz yetenek, tek pencere</h2>
+  </div>
+  <div class="feature-grid">
+    <article class="feature"><span class="fnum">01</span><h3 data-i18n="f.live.title">Gerçek zamanlı trafik</h3><p data-i18n="f.live.body">Aktif bağlantılar: yerel→uzak adres, süreç, durum. Saniyeler içinde yenilenir.</p></article>
+    <article class="feature"><span class="fnum">02</span><h3 data-i18n="f.perm.title">Uygulama izinleri</h3><p data-i18n="f.perm.body">Hedefe engelle / izin ver kuralları; uygulamaya atıf görünümü.</p></article>
+    <article class="feature"><span class="fnum">03</span><h3 data-i18n="f.susp.title">Şüpheli tespiti</h3><p data-i18n="f.susp.body">Yerel blocklist + sezgisel puanlama (0–100), çevrimdışı çalışır.</p></article>
+    <article class="feature"><span class="fnum">04</span><h3 data-i18n="f.dns.title">DNS & IP izleme</h3><p data-i18n="f.dns.body">systemd-resolved debug log'undan çözülen alan adları; DoH varsa dürüstçe "görünmez".</p></article>
+    <article class="feature"><span class="fnum">05</span><h3 data-i18n="f.fw.title">Firewall yönetimi</h3><p data-i18n="f.fw.body">nftables tablosu; IP/CIDR/domain/port için engelle/izin ver.</p></article>
+    <article class="feature"><span class="fnum">06</span><h3 data-i18n="f.hist.title">Geçmiş & analiz</h3><p data-i18n="f.hist.body">SQLite'a kayıt; en çok konuşulan hedefler ve uygulamalar.</p></article>
+    <article class="feature"><span class="fnum">07</span><h3 data-i18n="f.track.title">Tracker tespiti</h3><p data-i18n="f.track.body">Gömülü listeyle reklam/izleme alan adlarını turuncu işaretle.</p></article>
+    <article class="feature"><span class="fnum">08</span><h3 data-i18n="f.kill.title">Kill switch</h3><p data-i18n="f.kill.body">Tek tuşla her şeyi kes: kurulmuş+yeni, LAN, DNS, IPv4+IPv6.</p></article>
+  </div>
+</section>
+
+<section class="section alt" id="mimari">
+  <div class="section-head">
+    <span class="kicker" data-i18n="sec.arch">MİMARİ</span>
+    <h2 data-i18n="sec.arch.title">Yerel çekirdek, ince arayüz</h2>
+  </div>
+  <div class="arch">
+    <div class="arch-box"><span class="ab-tag">RUST</span><h3 data-i18n="arch.core">Çekirdek</h3><p data-i18n="arch.core.body">ss/conntrack ayrıştırıcı · SQLite · blocklist · analyzer · nftables/pkexec · DNS journal · tray</p></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box"><span class="ab-tag">TAURI 2</span><h3 data-i18n="arch.bridge">Köprü</h3><p data-i18n="arch.bridge.body">On Tauri komutu; ayrıcalıklı işlemler Rust'ta, arayüzden yalnızca yetkili çağrı.</p></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-box"><span class="ab-tag">VANILLA JS</span><h3 data-i18n="arch.ui">Arayüz</h3><p data-i18n="arch.ui.body">Altı ekran: Canlı, Analiz, DNS, Kurallar, Kill Switch, Ayarlar. Bağımlılık yok.</p></div>
+  </div>
+  <p class="arch-foot" data-i18n="arch.foot">Hiçbir katman dışarı veri göndermez; dışa aktarma yalnızca yerel JSON'dur.</p>
+</section>
+
+<section class="section" id="kurulum">
+  <div class="section-head">
+    <span class="kicker" data-i18n="sec.install">KURULUM</span>
+    <h2 data-i18n="sec.install.title">Üç paket, tek binary</h2>
+  </div>
+  <div class="install-grid">
+    <article class="pkg"><span class="pkg-tag">RPM · ÖNCELİKLİ</span><h3>Fedora / RHEL</h3><code>sudo dnf install FoxNetwarden-1.0.0-1.x86_64.rpm</code></article>
+    <article class="pkg"><span class="pkg-tag">DEB</span><h3>Debian / Ubuntu</h3><code>sudo dpkg -i FoxNetwarden_1.0.0_amd64.deb</code></article>
+    <article class="pkg"><span class="pkg-tag">APPIMAGE</span><h3>Dağıtımsız</h3><code>chmod +x FoxNetwarden_1.0.0_amd64.AppImage &amp;&amp; ./FoxNetwarden_1.0.0_amd64.AppImage</code></article>
+  </div>
+  <div class="build-strip">
+    <div><span class="kicker" data-i18n="build.title">KAYNAKTAN</span><code>cd src-tauri &amp;&amp; cargo test &amp;&amp; cargo tauri build --bundles rpm,deb,appimage</code></div>
+    <a class="btn small" href="https://github.com/Can-5/foxnetwarden" target="_blank" rel="noopener" data-i18n="build.repo">Depoyu gör ↗</a>
+  </div>
+</section>
+
+<section class="section alt" id="gizlilik">
+  <div class="section-head">
+    <span class="kicker" data-i18n="sec.privacy">GİZLİLİK</span>
+    <h2 data-i18n="sec.privacy.title">Verin yalnızca sende</h2>
+  </div>
+  <div class="privacy">
+    <p data-i18n="privacy.body">FoxNetwarden hesap istemez, buluta bağlanmaz, telemetri göndermez. Trafiği yerel makinede okur, geçmişi yerel SQLite dosyasında tutar. Engelleme/root gerektiren işlemler pkexec ile kullanıcı onayına sunulur; şifre önbelleğe alınmaz.</p>
+    <ul>
+      <li data-i18n="privacy.l1">Açık kaynak · MIT lisans</li>
+      <li data-i18n="privacy.l2">Blocklist statik ve pakete gömülü — otomatik indirme yok</li>
+      <li data-i18n="privacy.l3">Kill switch oturumluktur; çökmede kural kalmaz (manuel: sudo nft delete table inet foxnetwarden)</li>
+    </ul>
+  </div>
+</section>
+</main>
+
+<footer>
+  <span>© 2026 Can-5 · MIT</span>
+  <span data-i18n="footer.made">Yerel öncelikli yazılım.</span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
