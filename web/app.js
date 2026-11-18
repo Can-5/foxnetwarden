@@ -280,8 +280,8 @@
         const status = await invoke("dns_status");
         lastDnsStatus = status;
         if (!status || !status.visible) return { visible: false, events: [], status: status };
-        // dns_events komutu yok; status.count üzerinden görünürlük anlaşılır.
-        return { visible: true, events: [], status: status };
+        const events = await invoke("dns_events");
+        return { visible: true, events: events || [], status: status };
       } catch (e) {
         return { visible: false, events: [], status: null };
       }
@@ -381,7 +381,11 @@
 
   async function refreshRules() {
     if (isTauri) {
-      // Aktif nft kurallarını okuyan komut yok; eklenenleri yerel listeden göster.
+      // Canlı nft kuralı okuyan komut yok: yerel liste yalnızca bu oturumda eklenen
+      // kuralların kaydıdır; uygulama kapanınca nft kuralları kalıcı değildir.
+      // Yanıltıcı "aktif kural" iddiası yerine durumu açıkça belirt.
+      const ruleMeta = $("ruleMeta");
+      if (ruleMeta) ruleMeta.textContent = "Yerel kayıt (canlı nft kuralı okunamıyor) — yeniden başlatınca sıfırlanır";
     }
     renderRules();
   }
@@ -399,7 +403,7 @@
     if (isTauri) {
       try {
         await invoke("rule_add", { target: fullTarget, action: action });
-        rules.push({ id: "nft-" + Date.now(), action: action, target: fullTarget });
+        rules.push({ id: "local-" + Date.now(), action: action, target: fullTarget });
         LS.set("rules", rules);
         toast("Kural eklendi — pkexec şifresi onaylandı.", "ok");
       } catch (e) {
@@ -417,12 +421,21 @@
   });
 
   async function removeRule(r) {
-    if (isTauri && r.id && r.id.indexOf("nft-") === 0) {
-      try {
-        await invoke("rule_remove", { id: r.id });
-      } catch (e) {
-        toast("Kural silinemedi: " + e, "error");
-        return;
+    if (isTauri) {
+      // Yalnızca gerçek sayısal nft handle'ı silmeyi dene; sahte "local-"/"nft-" id
+      // rule_remove'a (sayısal handle bekler) gönderilirse her zaman başarısız olur.
+      const isHandle = r.id && /^\d+$/.test(String(r.id));
+      if (isHandle) {
+        try {
+          await invoke("rule_remove", { id: String(r.id) });
+        } catch (e) {
+          toast("Kural silinemedi: " + e, "error");
+          return;
+        }
+      } else {
+        // Canlı nft kuralı okuyan komut olmadığından yerel kayıt kaldırılır;
+        // gerçek kuralın kaldırılması için handle okuma komutu gerekir (bilinen sınır).
+        toast("Yerel kayıt kaldırıldı (canlı kural için handle okuma komutu yok).", "info");
       }
     }
     rules = rules.filter((x) => x !== r);

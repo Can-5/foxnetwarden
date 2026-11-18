@@ -2,6 +2,15 @@
 
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::{Manager, WindowEvent};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+// I-1: domain-set re-resolution (which needs interactive pkexec) only runs when
+// a domain-blocking rule is actually active. Default off => no password dialog
+// every 30 s in pure observation mode.
+static DOMAIN_RULES_ACTIVE: AtomicBool = AtomicBool::new(false);
+// I-5: tray menu id + desired-state flag so the menu item really toggles.
+const KILLSWITCH_TOGGLE: &str = "killswitch";
+static KILLSWITCH_ON: AtomicBool = AtomicBool::new(false);
 
 // ---- Command layer: thin wrappers around the pure/testable core modules. ----
 // Every command maps library errors to String so the webview gets a clean
@@ -41,6 +50,7 @@ fn rule_remove(id: String) -> Result<(), String> {
 fn killswitch_set(active: bool) -> Result<(), String> {
     let result = foxnetwarden::firewall::killswitch_set(active).map_err(|e| e.to_string());
     if result.is_ok() {
+        KILLSWITCH_ON.store(active, Ordering::Relaxed);
         let msg = if active {
             "Kill Switch AÇIK — tüm ağ trafiği kesildi"
         } else {
@@ -84,6 +94,12 @@ fn dns_mode(enabled: Option<bool>) -> foxnetwarden::DnsStatus {
     foxnetwarden::dns_status()
 }
 
+// I-2: expose journal-parsed DNS events to the UI (honest empty when invisible).
+#[tauri::command]
+fn dns_events() -> Vec<foxnetwarden::DnsEvent> {
+    foxnetwarden::dns_events()
+}
+
 #[tauri::command]
 fn tray_toggle_autostart() -> Result<bool, String> {
     let exe = std::env::current_exe()
@@ -113,13 +129,15 @@ fn spawn_observation_loop() {
                 );
             }
         }
-        // Periodically reconcile known tracker domains into the nft set so CDN
-        // IP rotation does not leave stale entries.
-        let trackers: Vec<String> = vec![
-            "doubleclick.net".into(),
-            "google-analytics.com".into(),
-        ];
-        let _ = foxnetwarden::domainblock_sync(&trackers);
+        // I-1: only re-resolve domains when a domain-blocking rule is active.
+        // Otherwise skip entirely — no interactive pkexec dialog every 30 s.
+        if DOMAIN_RULES_ACTIVE.load(Ordering::Relaxed) {
+            let trackers: Vec<String> = vec![
+                "doubleclick.net".into(),
+                "google-analytics.com".into(),
+            ];
+            let _ = foxnetwarden::domainblock_sync(&trackers);
+        }
         std::thread::sleep(std::time::Duration::from_secs(30));
     });
 }
@@ -129,7 +147,7 @@ fn build_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     use tauri::tray::TrayIconBuilder;
 
     let show = MenuItem::with_id(app, "show", "Pencereyi göster", true, None::<&str>)?;
-    let toggle = MenuItem::with_id(app, "killswitch", "Kill Switch aç/kapat", true, None::<&str>)?;
+    let toggle = MenuItem::with_id(app, KILLSWITCH_TOGGLE, "Kill Switch aç/kapat", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Çık", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &toggle, &quit])?;
 
@@ -149,10 +167,23 @@ fn build_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                     let _ = w.set_focus();
                 }
             }
-            "killswitch" => {
-                foxnetwarden::tray::notify("FoxNetwarden", "Kill Switch isteği alındı — pencereden durumu görün");
-                if let Some(w) = app.get_webview_window("main") {
-                    let _ = w.show();
+            KILLSWITCH_TOGGLE => {
+                // I-5: the tray item really toggles the kill switch, keeping the
+                // desired state in sync with the window UI.
+                let next = !KILLSWITCH_ON.load(Ordering::Relaxed);
+                match foxnetwarden::firewall::killswitch_set(next) {
+                    Ok(()) => {
+                        KILLSWITCH_ON.store(next, Ordering::Relaxed);
+                        let msg = if next {
+                            "Kill Switch AÇIK — tüm ağ kesildi"
+                        } else {
+                            "Kill Switch KAPALI — ağ serbest"
+                        };
+                        foxnetwarden::tray::notify("FoxNetwarden", msg);
+                    }
+                    Err(e) => {
+                        foxnetwarden::tray::notify("FoxNetwarden", &format!("Kill Switch hatası: {e}"));
+                    }
                 }
             }
             "quit" => {
@@ -193,6 +224,7 @@ fn main() {
             dns_status,
             dns_mode_set,
             dns_mode,
+            dns_events,
             tray_toggle_autostart
         ])
         .on_window_event(|window, event| {

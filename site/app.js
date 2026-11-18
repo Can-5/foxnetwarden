@@ -29,7 +29,7 @@
       "privacy.body": "FoxNetwarden hesap istemez, buluta bağlanmaz, telemetri göndermez. Trafiği yerel makinede okur, geçmişi yerel SQLite dosyasında tutar. Engelleme/root gerektiren işlemler pkexec ile kullanıcı onayına sunulur; şifre önbelleğe alınmaz.",
       "privacy.l1": "Açık kaynak · MIT lisans",
       "privacy.l2": "Blocklist statik ve pakete gömülü — otomatik indirme yok",
-      "privacy.l3": "Kill switch oturumluktur; çökmede kural kalmaz (manuel: sudo nft delete table inet foxnetwarden)",
+      "privacy.l3": "Kill switch temiz çıkışta geri alınır; çökmede kural çekirdekte kalır — sudo nft delete table inet foxnetwarden veya reboot gerekir",
       "footer.made": "Yerel öncelikli yazılım."
     },
     en: {
@@ -59,7 +59,7 @@
       "privacy.body": "FoxNetwarden asks for no account, talks to no cloud, sends no telemetry. It reads traffic on your machine and keeps history in a local SQLite file. Blocking/root actions go through pkexec for your approval; passwords are never cached.",
       "privacy.l1": "Open source · MIT license",
       "privacy.l2": "Vendored static blocklist — no automatic downloads",
-      "privacy.l3": "Kill switch is session-only; rules don't survive a crash (manual: sudo nft delete table inet foxnetwarden)",
+      "privacy.l3": "Kill switch reverts on clean exit; on crash rules REMAIN in kernel — run sudo nft delete table inet foxnetwarden or reboot",
       "footer.made": "Local-first software."
     }
   };

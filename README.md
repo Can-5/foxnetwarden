@@ -13,7 +13,7 @@ Faz 1 (bu sürüm):
 - **Canlı trafik** — `ss -tunp` ile aktif bağlantılar: yerel→uzak adres, süreç adı/PID, durum. Süreç adı görünmezse `?` (başka uid'in soketi).
 - **Şüpheli bağlantı tespiti** — pakete gömülü statik tracker/malware listeleri + yerel sezgisel puanlama (0–100). Bilinen tracker +60, malware IP +90, çok hedefe konuşan süreç (top-talker) +30.
 - **Firewall yönetimi** — nftables tablosu `foxnetwarden`; hedefe (IP/CIDR/domain/port) engelle/izin ver kuralları. Tüm ayrıcalıklı yazımlar `pkexec nft -f -` ile (şifre her işlemde sorulur, önbelleğe alınmaz).
-- **Kill switch** — tek tuşla **her şeyi** kes: kurulmuş + yeni bağlantılar, LAN, DNS, IPv4 + IPv6; izin kuralları muaf değil. Oturumluktur — çökerse kural kalmaz.
+- **Kill switch** — tek tuşla **her şeyi** kes: kurulmuş + yeni bağlantılar, LAN, DNS, IPv4 + IPv6; izin kuralları muaf değil. Temiz çıkışta kural geri alınır; **çökme/zorla kapatmada kural çekirdekte kalır** — `sudo nft delete table inet foxnetwarden` veya yeniden başlatma gerekir.
 - **DNS izleme (isteğe bağlı)** — `systemd-resolved` debug journal'ını okur. Debug kapalıysa veya tarayıcı DoH kullanıyorsa **"görünmez mod"** olduğunu dürüstçe söyler.
 - **Bağlantı geçmişi ve analiz** — SQLite (`~/.local/share/foxnetwarden/history.db`); en çok konuşulan hedefler/uygulamalar, zaman sıralı geçmiş.
 - **Tracker/telemetri tespiti** — domain eşleştirme (tam + alt alan adı wildcard, büyük/küçük harf duyarsız).
@@ -79,7 +79,7 @@ python3 -m http.server --bind 127.0.0.1 -d web 8794
 ## Dürüst sınırlar / Honest limitations
 
 - **Root gerekir** gerçek engelleme ve kill switch için; kök yoksa uygulama salt-gözlem modunda çalışır, kural ekleme nazikçe hata verir.
-- **Kill switch oturumluktur**: uygulama çökerse veya sistem yeniden başlarsa nft kuralı kalmaz (bilinçli — kilitlenme riskini önler). Manuel sıfırlama: `sudo nft delete table inet foxnetwarden`.
+- **Kill switch geri alma**: nftables kuralları çekirdekte yaşar; uygulama **temiz çıkışta** (tepsiden Çıkış) kill switch'i geri alır. **Çökme veya zorla kapatmada kural kalır** — `sudo nft delete table inet foxnetwarden` komutunu çalıştırın veya sistemi yeniden başlatın. Kurallar reboot ile silinir (kalıcı değil).
 - **Uygulama-adına-özel engelleme yok** (Faz 2'de cgroup eBPF ile planlandı). Faz 1'de engelleme hedefe/dayalıdır; süreç adı yalnızca gösterim/atıf içindir.
 - **Paket içeriği incelenmez, TLS çözülmez.** Trafigin hedefini/sürecini görürsün, içeriğini değil.
 - **DoH/DoT** kullanan tarayıcılar DNS'i `systemd-resolved`'ı atlar → DNS izleme görünmez modda kalır (uygulama bunu açıkça belirtir).

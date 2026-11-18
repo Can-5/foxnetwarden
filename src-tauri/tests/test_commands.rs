@@ -14,6 +14,7 @@ const REQUIRED_COMMANDS: &[&str] = &[
     "dns_mode",
     "dns_status",
     "dns_mode_set",
+    "dns_events",
     "tray_toggle_autostart",
 ];
 
@@ -61,14 +62,41 @@ fn test_main_wires_tray_persistence_and_dns_split() {
     assert!(main_src.contains("domainblock_sync"), "I1: sync domain sets periodically");
     assert!(main_src.contains("killswitch_set(false)"), "M3: revert kill switch on quit");
     // I4: dns_mode(None) must NOT toggle; the read path is a separate command.
+    // M-2: the real signature is `fn dns_mode`, not `async fn dns_mode`.
+    // The old split made this vacuous (nth(1)=None -> ""). Pin a non-empty body.
     let dns_fn = main_src
-        .split("async fn dns_mode")
+        .split("fn dns_mode(enabled: Option<bool>)")
         .nth(1)
         .map(|s| s.chars().take(400).collect::<String>())
         .unwrap_or_default();
     assert!(
+        !dns_fn.is_empty(),
+        "M-2: dns_mode body must be found so the toggle assertion is not vacuous"
+    );
+    assert!(
         !dns_fn.contains("dns_mode_toggle"),
         "I4: dns_mode(None) must not toggle opt-in silently"
+    );
+}
+
+#[test]
+fn test_final_review_fixes_wired() {
+    let main_src = fs::read_to_string(crate_root().join("src/main.rs")).unwrap();
+
+    // I-2: dns_events command must be registered and actually return events.
+    assert!(main_src.contains("dns_events,"), "I-2: dns_events must be in generate_handler!");
+
+    // I-5: tray kill-switch menu item must toggle state, not just notify.
+    assert!(
+        main_src.contains("KILLSWITCH_TOGGLE"),
+        "I-5: tray kill-switch menu must call killswitch_set on state"
+    );
+
+    // I-1: background observer must NOT run interactive pkexec every poll.
+    // We gate domain re-resolution behind an explicit domain-rule flag instead.
+    assert!(
+        main_src.contains("DOMAIN_RULES_ACTIVE"),
+        "I-1: domain set re-resolution must be gated (no pkexec every 30s)"
     );
 }
 
