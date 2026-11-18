@@ -277,7 +277,8 @@
   async function loadDnsEvents() {
     if (isTauri) {
       try {
-        const status = await invoke("dns_mode", { enabled: null });
+        const status = await invoke("dns_status");
+        lastDnsStatus = status;
         if (!status || !status.visible) return { visible: false, events: [], status: status };
         // dns_events komutu yok; status.count üzerinden görünürlük anlaşılır.
         return { visible: true, events: [], status: status };
@@ -333,7 +334,7 @@
     $("setDns").checked = next;
     if (isTauri) {
       try {
-        const st = await invoke("dns_mode", { enabled: next });
+        const st = await invoke("dns_mode_set", { enabled: next });
         lastDnsStatus = st;
         toast(next ? "DNS izleme açıldı (oturumluk)." : "DNS izleme kapatıldı.", next ? "ok" : "info");
       } catch (e) {
@@ -492,7 +493,7 @@
         }
       }
       try {
-        await invoke("dns_mode", { enabled: settings.dns });
+        await invoke("dns_mode_set", { enabled: settings.dns });
       } catch (e) {
         /* DNS izleme opisyonel */
       }

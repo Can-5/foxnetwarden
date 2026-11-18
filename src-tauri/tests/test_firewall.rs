@@ -1,6 +1,7 @@
+use foxnetwarden::domainblock::nft_domain_set_script;
 use foxnetwarden::firewall::{
-    nft_killswitch_script, nft_rule_add, nft_rule_remove, pkexec_nft_args, resolve_pkexec,
-    validate_target, Action, FirewallError, Target,
+    nft_killswitch_script, nft_rule_add, nft_rule_remove, nft_table_bootstrap, pkexec_nft_args,
+    resolve_pkexec, set_name, validate_target, Action, FirewallError, Target,
 };
 
 #[test]
@@ -47,6 +48,7 @@ fn test_nft_killswitch_drops_everything_and_leaves_no_bypass() {
     let on = nft_killswitch_script(true);
     assert!(on.contains("table inet foxnetwarden"), "{on}");
     assert!(on.contains("hook output"), "{on}");
+    assert!(on.contains("hook forward"), "{on}"); // I5: forwarded/Docker/VM traffic must also drop
     assert!(on.contains("policy drop"), "{on}");
     // priority must be negative so allow rules cannot punch through
     assert!(on.contains("priority -"), "{on}");
@@ -73,4 +75,33 @@ fn test_resolve_pkexec_missing_is_error() {
         other => panic!("expected PkexecMissing, got {other:?}"),
     }
     assert!(resolve_pkexec("/usr/bin/pkexec").is_ok());
+}
+
+// C1: block rules must live in a BASE chain, otherwise nft never evaluates them.
+#[test]
+fn test_table_bootstrap_creates_base_block_chain() {
+    let script = nft_table_bootstrap("SOME_RULE");
+    assert!(script.contains("add table inet foxnetwarden"), "{script}");
+    assert!(
+        script.contains("add chain inet foxnetwarden block { type filter hook output priority 0; policy accept; }"),
+        "block chain must be a base chain with a hook — got: {script}"
+    );
+    assert!(script.contains("SOME_RULE"), "{script}");
+}
+
+// I1: the domain set name used by rules must match the set name created by domainblock sync.
+#[test]
+fn test_domain_set_name_matches_between_rule_and_set_script() {
+    assert_eq!(set_name("doubleclick.net"), "doubleclick_net_set");
+    let domain = validate_target("doubleclick.net").unwrap();
+    let rule = nft_rule_add(&domain, Action::Block);
+    let set_script = nft_domain_set_script("doubleclick.net", &[]);
+    assert!(
+        rule.contains("@doubleclick_net_set"),
+        "rule must reference the shared set name: {rule}"
+    );
+    assert!(
+        set_script.contains("doubleclick_net_set"),
+        "set script must create the same set name: {set_script}"
+    );
 }

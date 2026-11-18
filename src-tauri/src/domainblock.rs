@@ -3,7 +3,7 @@
 //! periodic re-resolution so stale CDN IPs expire. No cloud, no external
 //! service — only the machine's own resolver.
 
-use crate::firewall::{run_nft_script, FirewallError, TABLE};
+use crate::firewall::{run_nft_script, set_name, FirewallError, TABLE};
 use std::net::{IpAddr, ToSocketAddrs};
 
 /// Resolve a domain name to its current IP addresses via the system resolver.
@@ -33,13 +33,13 @@ pub fn resolve_domain(domain: &str) -> Vec<IpAddr> {
 /// IPs. `flush` removes stale entries before re-adding — this is what lets a
 /// rotated CDN IP be replaced on the next re-resolution.
 pub fn nft_domain_set_script(domain: &str, ips: &[IpAddr]) -> String {
-    let set_name = format!("{}_set", domain.replace(['.', '-'], "_"));
+    let sname = set_name(domain);
     let mut script = format!(
-        "add table inet {TABLE}\nadd set inet {TABLE} {set_name} {{ type ipv4_addr; }}\nflush set inet {TABLE} {set_name}\n"
+        "add table inet {TABLE}\nadd set inet {TABLE} {sname} {{ type ipv4_addr; }}\nflush set inet {TABLE} {sname}\n"
     );
     for ip in ips {
         if let IpAddr::V4(v4) = ip {
-            script.push_str(&format!("add element inet {TABLE} {set_name} {{ {v4} }}\n"));
+            script.push_str(&format!("add element inet {TABLE} {sname} {{ {v4} }}\n"));
         }
     }
     script

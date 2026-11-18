@@ -69,7 +69,8 @@ fn test_firewall_rule_generation_chain() {
     let domain = validate_target("tracker.example.com").unwrap();
     assert!(matches!(domain, Target::Domain(_)));
     let domain_rule = nft_rule_add(&domain, Action::Block);
-    assert!(domain_rule.contains("tracker.example.com"));
+    // Domain set names normalize dots to underscores (firewall::set_name).
+    assert!(domain_rule.contains("@tracker_example_com_set"), "{domain_rule}");
 
     // Kill switch script covers everything, no bypass exceptions.
     let on = nft_killswitch_script(true);

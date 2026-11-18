@@ -93,6 +93,21 @@ fn action_word(action: &Action) -> &'static str {
     }
 }
 
+/// Canonical nft set name for a domain (dots/dashes → underscores). Shared by
+/// rule generation and set creation so a domain rule always matches its set.
+pub fn set_name(domain: &str) -> String {
+    format!("{}_set", domain.to_ascii_lowercase().replace(['.', '-'], "_"))
+}
+
+/// Bootstrap the table plus `block` as a BASE chain (hook output, policy
+/// accept). nft only evaluates base chains — a regular chain is inert unless
+/// something jumps to it, which is why blocking previously did nothing.
+pub fn nft_table_bootstrap(rule: &str) -> String {
+    format!(
+        "add table inet {TABLE}\nadd chain inet {TABLE} {CHAIN_BLOCK} {{ type filter hook output priority 0; policy accept; }}\n{rule}"
+    )
+}
+
 /// Generate an `add rule` nft line for a validated target.
 pub fn nft_rule_add(target: &Target, action: Action) -> String {
     let act = action_word(&action);
@@ -105,7 +120,7 @@ pub fn nft_rule_add(target: &Target, action: Action) -> String {
             }
         }
         Target::Domain(domain) => {
-            format!("add rule inet {TABLE} {CHAIN_BLOCK} ip daddr @{domain}_set {act}")
+            format!("add rule inet {TABLE} {CHAIN_BLOCK} ip daddr @{} {act}", set_name(domain))
         }
         Target::Port(port) => format!(
             "add rule inet {TABLE} {CHAIN_BLOCK} tcp dport {port} {act}"
@@ -121,18 +136,19 @@ pub fn nft_rule_remove(handle: &str) -> Result<String, FirewallError> {
     Ok(format!("delete rule inet {TABLE} {CHAIN_BLOCK} handle {handle}"))
 }
 
-/// Generate the kill-switch script. Enabling installs an `output` hook at
-/// priority -300 with `policy drop` — before any allow rule can match — and
-/// with no established/loopback/DNS exceptions, so nothing leaks. Under `inet`
-/// both IPv4 and IPv6 are covered. Disabling deletes only this chain, leaving
-/// the rest of the table intact, and is session-only (nft is not persisted).
+/// Generate the kill-switch script. Enabling installs `output` and `forward`
+/// hooks at priority -300 with `policy drop` — before any allow rule can match
+/// and covering locally-generated AND forwarded (Docker/VM/NAT) traffic — with
+/// no established/loopback/DNS exceptions, so nothing leaks. Under `inet` both
+/// IPv4 and IPv6 are covered. Disabling deletes only the killswitch chain,
+/// leaving the rest of the table intact, and is session-only (nft is not persisted).
 pub fn nft_killswitch_script(active: bool) -> String {
     if active {
         format!(
-            "table inet {TABLE} {{\n  chain {CHAIN_KILLSWITCH} {{\n    type filter hook output priority -300; policy drop;\n  }}\n}}"
+            "table inet {TABLE} {{\n  chain {CHAIN_KILLSWITCH} {{\n    type filter hook output priority -300; policy drop;\n  }}\n  chain {CHAIN_KILLSWITCH}_fwd {{\n    type filter hook forward priority -300; policy drop;\n  }}\n}}"
         )
     } else {
-        format!("delete chain inet {TABLE} {CHAIN_KILLSWITCH}")
+        format!("delete chain inet {TABLE} {CHAIN_KILLSWITCH}\ndelete chain inet {TABLE} {CHAIN_KILLSWITCH}_fwd")
     }
 }
 
@@ -202,10 +218,7 @@ pub fn fw_status() -> Result<String, FirewallError> {
 /// Add a block/allow rule. Privileged; returns whether elevation succeeded.
 pub fn rule_add(target: &str, action: Action) -> Result<(), FirewallError> {
     let t = validate_target(target)?;
-    let script = format!(
-        "add table inet {TABLE}\nadd chain inet {TABLE} {CHAIN_BLOCK}\n{}",
-        nft_rule_add(&t, action)
-    );
+    let script = nft_table_bootstrap(&nft_rule_add(&t, action));
     run_nft_script(&script)
 }
 

@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
-use tauri::Manager;
+use tauri::{Manager, WindowEvent};
 
 // ---- Command layer: thin wrappers around the pure/testable core modules. ----
 // Every command maps library errors to String so the webview gets a clean
@@ -61,13 +61,26 @@ fn top_talkers() -> Result<Vec<foxnetwarden::Talker>, String> {
     foxnetwarden::top_talkers()
 }
 
+// I4: three distinct commands with distinct intents. A read never mutates state;
+// a write always carries an explicit boolean. The old single dns_mode(None)
+// toggled on read, which silently flipped the opt-in when the UI polled status.
+#[tauri::command]
+fn dns_status() -> foxnetwarden::DnsStatus {
+    foxnetwarden::dns_status()
+}
+
+#[tauri::command]
+fn dns_mode_set(enabled: bool) -> foxnetwarden::DnsStatus {
+    foxnetwarden::dns_mode_set(enabled);
+    foxnetwarden::dns_status()
+}
+
 #[tauri::command]
 fn dns_mode(enabled: Option<bool>) -> foxnetwarden::DnsStatus {
     if let Some(value) = enabled {
         foxnetwarden::dns_mode_set(value);
-    } else {
-        foxnetwarden::dns_mode_toggle();
     }
+    // None is a pure read — no mutation, no toggle.
     foxnetwarden::dns_status()
 }
 
@@ -77,6 +90,38 @@ fn tray_toggle_autostart() -> Result<bool, String> {
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| "foxnetwarden".to_string());
     foxnetwarden::tray::autostart_toggle(&exe)
+}
+
+// I2/I3: background observation loop. Persists every observation to SQLite and
+// scores it with the same analyzer the UI uses; high-scoring connections raise a
+// desktop notification. Runs off the UI thread so history/analysis are populated
+// even when no browser screen is open.
+fn spawn_observation_loop() {
+    std::thread::spawn(|| loop {
+        if let Ok(conns) = foxnetwarden::live_connections() {
+            let mut high = 0u32;
+            for c in &conns {
+                let _ = foxnetwarden::db_insert(c);
+                if foxnetwarden::analyzer_score(c) >= 60 {
+                    high += 1;
+                }
+            }
+            if high > 0 {
+                foxnetwarden::tray::notify(
+                    "FoxNetwarden",
+                    &format!("{high} şüpheli bağlantı tespit edildi"),
+                );
+            }
+        }
+        // Periodically reconcile known tracker domains into the nft set so CDN
+        // IP rotation does not leave stale entries.
+        let trackers: Vec<String> = vec![
+            "doubleclick.net".into(),
+            "google-analytics.com".into(),
+        ];
+        let _ = foxnetwarden::domainblock_sync(&trackers);
+        std::thread::sleep(std::time::Duration::from_secs(30));
+    });
 }
 
 fn build_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -105,14 +150,16 @@ fn build_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             "killswitch" => {
-                // Toggle is driven by the UI command so state stays in one place;
-                // tray merely notifies that the user requested it.
                 foxnetwarden::tray::notify("FoxNetwarden", "Kill Switch isteği alındı — pencereden durumu görün");
                 if let Some(w) = app.get_webview_window("main") {
                     let _ = w.show();
                 }
             }
-            "quit" => app.exit(0),
+            "quit" => {
+                // M3: never leave the machine cut off when the app is closed.
+                let _ = foxnetwarden::firewall::killswitch_set(false);
+                app.exit(0);
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -143,13 +190,24 @@ fn main() {
             killswitch_set,
             blocklist_stats,
             top_talkers,
+            dns_status,
+            dns_mode_set,
             dns_mode,
             tray_toggle_autostart
         ])
+        .on_window_event(|window, event| {
+            // I2: closing the window hides it to the tray instead of killing the
+            // app — the tray (and its kill-switch revert on quit) stays alive.
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .setup(|app| {
             if let Err(e) = build_tray(app) {
                 eprintln!("tray kurulamadı: {e}");
             }
+            spawn_observation_loop();
             Ok(())
         })
         .run(tauri::generate_context!())
