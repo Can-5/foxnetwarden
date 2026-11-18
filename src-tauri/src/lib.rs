@@ -5,6 +5,7 @@ pub mod db;
 pub mod domainblock;
 pub mod dnslog;
 pub mod firewall;
+pub mod tray;
 
 pub use analyzer::{analyzer_score, analyzer_score_with_targets};
 pub use blocklist::{blocklist_match, blocklist_stats, MatchResult};
